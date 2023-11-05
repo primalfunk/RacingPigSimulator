@@ -36,9 +36,6 @@ class Pig(QObject):
         self.endurance = random.uniform(3, 7)  # Time in seconds the pig can maintain CHARGING
         self.vigor = random.uniform(3, 7)  # Time in seconds the pig is in RECOVERING
         self.spirit = random.uniform(CHARGING_MIN, CHARGING_MAX)  # Chance to go into CHARGING state
-        self.charging_counter = 0
-        self.longest_charge_duration = 0
-        self.current_charge_duration = 0
 
     def run(self, weather_conditions, track_conditions):
         self.running = True
@@ -61,16 +58,10 @@ class Pig(QObject):
                     self.state_changed.emit('CHARGING')  # Emit state change
             # Handle state transitions
             if self.state == 'CHARGING':
-                self.current_charge_duration += time_interval_ms / 1000
-                self.charging_counter += 1
                 if self.state_timer >= self.endurance:
                     self.state = 'RECOVERING'
                     self.state_timer = 0
                     self.state_changed.emit('RECOVERING')  # Emit state change
-                    self.charging_counter += 1
-                    if self.current_charge_duration > self.longest_charge_duration:
-                        self.longest_charge_duration = self.current_charge_duration
-                    self.current_charge_duration = 0
             elif self.state == 'RECOVERING' and self.state_timer >= self.vigor:
                 self.state = 'NORMAL'
                 self.state_timer = 0
@@ -292,7 +283,7 @@ class RaceRecapWidget(QWidget):
         self.setLayout(self.layout)
         self.labels = []
 
-    def display_results(self, race_results, pigs_info):
+    def display_results(self, race_results):
         # Clear existing results
         for label in self.labels:
             self.layout.removeWidget(label)
@@ -301,11 +292,7 @@ class RaceRecapWidget(QWidget):
         self.layout.addWidget(QLabel("Race Recap: Top Three Positions"))
         for i, (name, time) in enumerate(race_results[:3]):
             place = ["1st", "2nd", "3rd"][i]
-            # Find additional info for each pig
-            pig_charging_info = pigs_info.get(name, {})
-            charges = pig_charging_info.get('charging_counter', 0)
-            longest_charge = pig_charging_info.get('longest_charge_duration', 0)
-            label = QLabel(f"{place}: {name}, Time: {time:.2f} seconds, Charges: {charges}, Longest Charge: {longest_charge:.2f} seconds")
+            label = QLabel(f"{place}: {name}, Time: {time:.2f} seconds")
             self.labels.append(label)
             self.layout.addWidget(label)
 
@@ -382,11 +369,8 @@ class MainWindow(QMainWindow):
         self.display_pigs()
 
     def show_race_recap(self):
-        pigs_info = {pig.name: {'charging_counter': pig.charging_counter,
-                        'longest_charge_duration': pig.longest_charge_duration}
-             for pig in self.race_controller.pigs}
         sorted_results = sorted(self.race_results, key=lambda x: x[1])
-        self.race_recap_widget.display_results(sorted_results, pigs_info)
+        self.race_recap_widget.display_results(sorted_results)
         self.race_recap_widget.show()
         self.start_button.setText("Start Over")
         self.start_button.setEnabled(True)
