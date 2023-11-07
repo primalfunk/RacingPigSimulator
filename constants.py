@@ -1,18 +1,36 @@
-# Warning, contains 250 weapons-grade pig puns
+PLAYER_START_BANK = 1000 # dollars
+DEFAULT_BET_SIZE = 100 # dollars
 RACE_DISTANCE = 2000  # meters
-SPEED_MIN = 195  # km/h
-SPEED_MAX = 210  # km/h
+SPEED_MIN = 100  # km/h
+SPEED_MAX = 110  # km/h
 AGILITY_MIN = 85
 AGILITY_MAX = 100
-CHARGING_MIN = 0.1
-CHARGING_MAX = 0.3
+CHARGING_MIN = 0.03
+CHARGING_MAX = 0.15
 TIME_COMPRESSION = 20  # Real-time compression factor
 STRAIGHTAWAY_LENGTH = 750
 TURN_LENGTH = 250
 TOTAL_TRACK_LENGTH = 2 * (STRAIGHTAWAY_LENGTH + TURN_LENGTH)
 CHARGING = 2
 NORMAL = 1
-RECOVERING = 0.95
+RECOVERING = 0.9
+SPEED_FACTOR = 1
+ENDURANCE_FACTOR = 1
+AGILITY_FACTOR = 1
+END_MIN = 4
+END_MAX = 7
+VIG_MIN = 5
+VIG_MAX = 8
+ENERGY_MIN = 5
+ENERGY_MAX = 10
+ODDS_MIN = 1.1
+ODDS_MAX = 3
+SPEED_WEIGHT = 0.05
+AGILITY_WEIGHT = 0.15
+VIGOR_WEIGHT = 0.2
+ENDURANCE_WEIGHT = 0.15
+SPIRIT_WEIGHT = 0.2
+ENERGY_WEIGHT = 0.25
 WEATHER_CONDITIONS = {
     "clear": 1.0,
     "foggy": 0.98,
@@ -23,16 +41,14 @@ WEATHER_CONDITIONS = {
     "deep freeze": 0.84,
     "hail": 0.80,
 }
-
 TRACK_CONDITIONS = {
-    "clear": 1.0,
+    "clean": 1.0,
     "muddy": 0.90,
     "snow": 0.84,
     "deep mud": 0.82,
     "deep snow": 0.8,
     "frozen hard": 0.74,
 }
-
 PIG_NAMES = [
     "Hamlet",
     "Porkchop",
