@@ -32,11 +32,11 @@ class RaceRecapWidget(QWidget):
         # Update results for the top three positions
         for i, result in enumerate(race_results[:3]):
             place = ["1st", "2nd", "3rd"][i]
-            name = result['name']
-            time = result['time']
-            odds = result['odds']
-            performance_level = result['performance_level']
-            label_text = f"{place}: {name}, Time: {time:.2f} seconds, Odds: {odds:.2f}, Performance Level: {performance_level*100:.1f}"
+            name = result['Racer Pig']
+            time = result['Finishing Time']
+            odds = result['Win Odds']
+            performance_level = result['Performance Rating']
+            label_text = f"{place}: Racing Pig {name}, Finishing Time: {time:.2f} seconds, Win Odds: {odds:.2f}, Performance Level: {performance_level*100:.1f}"
             self.labels[i].setText(label_text) 
 
 
@@ -60,7 +60,7 @@ class MainWindow(QMainWindow):
         self.betting_widget.bet_placed.connect(self.bet_has_been_placed)
 
     def init_ui(self):
-        self.setWindowTitle("Racing Pig Simulator")
+        self.setWindowTitle("Realistic Racing Pig Simulator")
         self.setGeometry(200, 200, 900, 300)
         self.central_widget = QWidget()
         self.setCentralWidget(self.central_widget)
@@ -71,7 +71,7 @@ class MainWindow(QMainWindow):
                 self.race_controller.track_condition
                 )
         self.layout.addWidget(self.race_track_widget)
-        self.start_button = QPushButton("Select a Racer")
+        self.start_button = QPushButton("Select Racer and Place Bet")
         self.start_button.clicked.connect(self.handle_start_button)
         self.layout.addWidget(self.start_button)
         self.central_widget.setLayout(self.layout)
@@ -82,21 +82,23 @@ class MainWindow(QMainWindow):
         self.race_track_widget.calculate_odds()
 
     def prepare_to_place_bet(self):
-            self.start_button.setText("Place Bet")
+        self.start_button.setText("Select Racer and Place Bet")
 
     def bet_has_been_placed(self):
         self.start_button.setText("RACE IN PROGRESS")
 
     def handle_start_button(self):
-        if self.start_button.text() == "Place Bet":
+        if self.start_button.text() == "Select Racer and Place Bet":
             self.betting_widget.place_bet()
             self.start_button.setDisabled(True)
+            self.betting_widget.bet_amount_dropdown.setDisabled(True)
             self.race_controller.start_race()
         if self.start_button.text() == "Start Over":
             self.reset_race()
 
     def show_results(self):
-        self.start_button.setDisabled(False)
+        self.start_button.setEnabled(True)
+        self.betting_widget.bet_amount_dropdown.setEnabled(True)
 
     def closeEvent(self, event):
         self.race_track_widget.update_timer.stop()
@@ -106,22 +108,19 @@ class MainWindow(QMainWindow):
     def race_results_updated(self, name):
         pig = next((p for p in self.race_controller.pigs if p.name == name), None)
         if pig:
-            self.race_results.append({
-                'name': pig.name,
-                'time': pig.time,
-                'odds': pig.odds,
-                'performance_level': pig.performance_level
-            })
+            self.race_results.append({'Racer Pig': pig.name, 'Finishing Time': pig.time, 'Win Odds': pig.odds, 'Performance Rating': pig.performance_level})
         else:
             print(f"Pig with name {name} not found.")
 
     def reset_race(self):
         self.start_button.setEnabled(True)
-        self.start_button.setText("Select a Racer")
+        self.betting_widget.bet_amount_dropdown.setEnabled(True)
+        self.start_button.setText("Select a Racer Pig")
         self.race_recap_widget.hide()
         self.race_track_widget.show()
         self.race_results.clear()
         self.race_controller.clean_up() 
+        self.race_track_widget.selected_pig_widget = None
         self.race_track_widget.clear_pigs()
         self.race_controller = RaceController()
         for pig in self.race_controller.pigs:
@@ -130,8 +129,7 @@ class MainWindow(QMainWindow):
         self.display_pigs()
 
     def show_race_recap(self):
-        # Sort the results by time
-        sorted_results = sorted(self.race_results, key=lambda x: x['time'])
+        sorted_results = sorted(self.race_results, key=lambda x: x['Finishing Time'])
         self.race_recap_widget.display_results(sorted_results)
         self.race_recap_widget.show()
         self.start_button.setText("Start Over")

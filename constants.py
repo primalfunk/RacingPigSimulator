@@ -1,5 +1,5 @@
-PLAYER_START_BANK = 1000 # dollars
-DEFAULT_BET_SIZE = 100 # dollars
+PLAYER_START_BANK = 100 # dollars
+DEFAULT_BET_SIZE = 10 # dollars
 RACE_DISTANCE = 2000  # meters
 SPEED_MIN = 100  # km/h
 SPEED_MAX = 110  # km/h

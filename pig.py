@@ -17,7 +17,7 @@ class Pig(QObject):
         self.is_selected = False
         self.distance_covered = 0.0
         self.running = False
-        self.state = 'CHARGING'  # Current state of the pig: 'CHARGING', 'NORMAL', 'RECOVERING'
+        self.state = 'READY'  # Current state of the pig: 'CHARGING', 'NORMAL', 'RECOVERING'
         self.state_timer = 0  # Timer to track how long we've been in the current state
         self.time = 0
         self.agility = random.uniform(AGILITY_MIN, AGILITY_MAX)
@@ -41,6 +41,8 @@ class Pig(QObject):
             QThread.msleep(time_interval_ms)
             self.state_timer += time_interval_ms / 1000
             charge_check_timer += time_interval_ms
+            if self.state == 'READY':
+                self.state = 'CHARGING'
             if self.state == 'NORMAL' and charge_check_timer >= charge_check_interval:
                 charge_check_timer = 0  # Reset timer
                 if random.random() < self.spirit:

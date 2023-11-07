@@ -1,5 +1,5 @@
 from betting import BettingWidget
-from constants import ODDS_MIN, ODDS_MAX
+from constants import ODDS_MIN, ODDS_MAX, PLAYER_START_BANK
 from PyQt5.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -37,6 +37,7 @@ class RaceTrackWidget(QWidget):
         self.init_timer()
         self.race_controller = race_controller
         self.first_pig_finished = False
+        self.bet_amount = 10
 
     def init_ui(self):
         self.setMinimumWidth(800)
@@ -55,8 +56,10 @@ class RaceTrackWidget(QWidget):
         labels_layout = QHBoxLayout()
         self.weather_label = QLabel("Weather Conditions: ")
         self.track_label = QLabel("Track Conditions: ")
+        self.bank_label = QLabel(f"Player Bank: $")
         labels_layout.addWidget(self.weather_label)
         labels_layout.addWidget(self.track_label)
+        labels_layout.addWidget(self.bank_label)
         self.layout.addLayout(labels_layout)
         lower_horizontal_line = QFrame()
         lower_horizontal_line.setFrameShape(QFrame.HLine)
@@ -65,6 +68,8 @@ class RaceTrackWidget(QWidget):
         self.pigs_layout = QVBoxLayout()
         self.layout.addLayout(self.pigs_layout)
         self.betting_widget = BettingWidget(self)
+        self.bank = PLAYER_START_BANK
+        self.betting_widget.bet_placed.connect(self.handle_bet_placed)
         self.layout.addWidget(self.betting_widget)
 
     def init_timer(self):
@@ -75,7 +80,7 @@ class RaceTrackWidget(QWidget):
 
     def add_pig(self, pig):
         progress_bar = QProgressBar()
-        label_text = f"Name:{pig.name} PRF: {pig.performance_level} Odds: {pig.odds:.2f}  State: READY"
+        label_text = f"Name:{pig.name} PRF: {pig.performance_level} Odds: {pig.odds:.2f}  State: {pig.state}"
         pig.label = ClickableLabel(pig)
         pig.label.clicked.connect(lambda pig=pig: self.update_racer_details(pig))
         pig.label.setText(label_text)
@@ -92,9 +97,9 @@ class RaceTrackWidget(QWidget):
     def start_race_ui(self, weather_condition, track_condition):
         self.weather_label.setText(f"Weather Conditions: {weather_condition[0]}")
         self.track_label.setText(f"Track Conditions: {track_condition[0]}")
+        self.bank_label.setText(f"Player Bank: ${self.bank}")
 
     def calculate_odds(self):
-        # First, determine the range of performance levels among all pigs
         min_per = min(pig.performance_level for pig, _, _ in self.pig_widgets)
         max_per = max(pig.performance_level for pig, _, _ in self.pig_widgets)
         for pig, label, _ in self.pig_widgets:
@@ -112,6 +117,8 @@ class RaceTrackWidget(QWidget):
         ]
         self.pigs_layout.removeWidget(progress_bar)
         self.pigs_layout.removeWidget(label)
+        if self.selected_pig_widget in self.pig_widgets:
+            self.selected_pig_widget = None
         progress_bar.deleteLater()
         label.deleteLater()
 
@@ -124,7 +131,6 @@ class RaceTrackWidget(QWidget):
         self.pig_widgets.clear() 
 
     def update_racer_details(self, pig):
-            # Prevent selection if the race has started
             if self.race_controller._race_started:
                 return
             if self.selected_pig_widget:
@@ -134,15 +140,11 @@ class RaceTrackWidget(QWidget):
             pig.label.setStyleSheet("QLabel { border: 1px solid blue; }")
             self.betting_widget.show_racer_details(pig)  # Show the details of the selected pig
             for pig_widget, label, _ in self.pig_widgets:
-                if pig_widget is pig:
-                    label.setText(f"{pig.name} PER:{pig.performance_level*100:.1f} Odds:{pig.odds:.1f}")
-                else:
-                    label.setText(f"{pig_widget.name} PER:{pig_widget.performance_level*100:.1f} Odds:{pig_widget.odds:.1f}")
+                label.setText(self.get_pig_label_text(pig_widget))
 
     def update_standings(self):
         if self.race_controller._race_started and not self.race_controller._race_finished:
             self.pig_widgets.sort(key=lambda x: x[0].distance_covered, reverse=True)
-            # Clear the current layout before re-adding widgets in the new order.
             for _, label, progress_bar in self.pig_widgets:
                 self.pigs_layout.removeWidget(label)
                 self.pigs_layout.removeWidget(progress_bar)
@@ -167,13 +169,30 @@ class RaceTrackWidget(QWidget):
         blue_intensity = 0
         return f"rgb({int(red_intensity)}, {int(green_intensity)}, {int(blue_intensity)})"
 
+    def get_pig_label_text(self, pig, state=None):
+        # If a specific state is provided, use that. Otherwise, use the pig's current state.
+        pig_state = state if state is not None else pig.state
+        return f"Name: {pig.name} PER: {pig.performance_level:.2f} Odds: {pig.odds:.2f} State: {pig_state}"
+
     def update_pig_state_label(self, pig, label, progress_bar, state):
         # Update the label text to include the pig's current state
-        label_text = f"Name:{pig.name} PRF: {pig.performance_level:.1f} Odds: {pig.odds:.2f}  State:{state}"
+        label_text = self.get_pig_label_text(pig, state)
         label.setText(label_text)
         self.update_progress_bar_color(pig, progress_bar)
     
+    def handle_bet_placed(self, bet_amount, bet_details):
+        self.bet_amount = bet_amount
+        self.bet_details = bet_details
+        self.bank -= self.bet_amount
+        self.update_bank_label()
+    
+    def update_bank_label(self):
+        self.bank_label.setText(f"Player Bank: ${self.bank}")
+    
     def handle_pig_finished(self, name, time):
+        if self.selected_pig_widget and self.selected_pig_widget.name == name:
+            payout = self.bet_amount * self.selected_pig_widget.odds
+            self.bank += payout
         self.first_pig_finished = True
         for pig, label, progress_bar in self.pig_widgets[:]:
             if pig.name == name:

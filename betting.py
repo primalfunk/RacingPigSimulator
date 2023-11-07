@@ -1,10 +1,10 @@
-from constants import PLAYER_START_BANK, DEFAULT_BET_SIZE
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QFrame, QLabel
+from constants import DEFAULT_BET_SIZE
+from PyQt5.QtWidgets import QComboBox, QWidget, QVBoxLayout, QFrame, QLabel, QHBoxLayout
 from PyQt5.QtCore import QThread, pyqtSignal, QObject, QTimer, Qt
 
 class BettingWidget(QWidget):
     pig_selected = pyqtSignal()
-    bet_placed = pyqtSignal()
+    bet_placed = pyqtSignal((int, str))
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -12,21 +12,45 @@ class BettingWidget(QWidget):
         self.racer_details_label.setTextFormat(Qt.RichText)
         self.racer_details_label.setWordWrap(True)
         self.racer_details_label.setMaximumHeight(100)
-        self.player_start_bank = PLAYER_START_BANK
         self.bet_amount = DEFAULT_BET_SIZE
+        self.bet_type = "Win"
         self.init_ui() 
 
     def init_ui(self):
-        self.setMinimumHeight(200)
-        self.setMaximumHeight(400)
-        layout = QVBoxLayout()
-        upper_horizontal_line = QFrame()
-        upper_horizontal_line.setFrameShape(QFrame.HLine)
-        upper_horizontal_line.setFrameShadow(QFrame.Sunken)
-        layout.addWidget(upper_horizontal_line)
-        layout.addWidget(self.racer_details_label)
+            self.setMinimumHeight(200)
+            self.setMaximumHeight(400)
+            layout = QVBoxLayout()
+            upper_horizontal_line = QFrame()
+            upper_horizontal_line.setFrameShape(QFrame.HLine)
+            upper_horizontal_line.setFrameShadow(QFrame.Sunken)
+            layout.addWidget(upper_horizontal_line)
+            layout.addWidget(self.racer_details_label)
 
-        self.setLayout(layout)
+            # Create a horizontal layout for dropdowns and label
+            dropdown_layout = QHBoxLayout()
+
+            # Label for bet selection
+            bet_selection_label = QLabel("Select bet type and amount:")
+            dropdown_layout.addWidget(bet_selection_label)
+
+            # Dropdown menu for bet amount selection
+            self.bet_amount_dropdown = QComboBox(self)
+            self.bet_amount_dropdown.addItems(['5', '10', '25', '50'])  # Adding default bet amounts as strings
+            self.bet_amount_dropdown.setCurrentIndex(1)  # Default selection index for '10'
+            self.bet_amount_dropdown.currentIndexChanged.connect(self.bet_amount_changed)  # Connect signal to slot
+            dropdown_layout.addWidget(self.bet_amount_dropdown)
+
+            # Dropdown menu for bet type selection
+            self.bet_type_dropdown = QComboBox(self)
+            self.bet_type_dropdown.addItems(['Win', 'Place', 'Show'])  # Adding bet types
+            self.bet_type_dropdown.currentIndexChanged.connect(self.bet_type_changed)  # Connect signal to slot
+            dropdown_layout.addWidget(self.bet_type_dropdown)
+
+            # Add the horizontal layout to the main vertical layout
+            layout.addLayout(dropdown_layout)
+            
+            # Set the layout for the widget
+            self.setLayout(layout)
 
     def show_racer_details(self, pig):
         details_html = f"""
@@ -44,5 +68,13 @@ class BettingWidget(QWidget):
         self.racer_details_label.clear()
 
     def place_bet(self):
-        self.bet_placed.emit()
-        
+        selected_bet_amount = int(self.bet_amount_dropdown.currentText())  # Get the selected bet amount as integer
+        selected_bet_type = self.bet_type_dropdown.currentText()
+        self.bet_placed.emit(selected_bet_amount, selected_bet_type)  # Emit the selected bet amount and type
+
+    def bet_amount_changed(self):
+        self.bet_amount = int(self.bet_amount_dropdown.currentText())  # Update the bet_amount when selection changes
+    
+    def bet_type_changed(self):
+        # Update the bet_type when selection changes
+        self.bet_type = self.bet_type_dropdown.currentText()
