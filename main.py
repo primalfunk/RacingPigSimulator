@@ -24,7 +24,7 @@ class RaceRecapWidget(QWidget):
         self.setLayout(self.layout)
         self.recap_label = QLabel("Race Recap: Top Three Positions")
         self.layout.addWidget(self.recap_label)
-        self.labels = [QLabel("") for _ in range(3)]  # Initialize three labels for the top three positions.
+        self.labels = [QLabel("") for _ in range(3)]
         for label in self.labels:
             self.layout.addWidget(label)
         
