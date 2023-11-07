@@ -15,7 +15,7 @@ The Racing Pig Simulator consists of the following components:
 - `pig.py` - Defines the `Pig` class, which embodies the attributes and behaviors of a racing pig, including its statistics and racing logic.
 - `racetrack.py` - Houses the animated racetrack widget and its associated betting interface.
 - `betting.py` - Contains the logic for the betting interface.
-- `constants.py` - Stores constants utilized across the project for easy maintenance and updates.
+- `constants.py` - Stores constants utilized across the project for easy maintenance and updates, including a hard-coded list of 250 pig puns for name selection.
 
 ## Pig Stats
 
