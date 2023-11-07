@@ -1,6 +1,8 @@
 # Racing Pig Simulator
 
-This project is a whimsical and entertaining racing simulator that answers the age old question - what if we had a horse racing simulator, but instead of horses, pigs? It showcases the use of threads, signals, and slots in PyQt5, demonstrating how these elements can be employed to create a dynamic and interactive application. The simulator includes intricate mechanics such as calculating statistics and odds for a set of randomly generated pig racers, providing users with a unique experience each race.
+This project is a whimsical and entertaining racing simulator that answers the age-old question - what if we had a somewhat realistic horse racing simulator, but instead of horses, really fast pigs? 
+
+It showcases the use of threads, signals, and slots in PyQt5, demonstrating how these elements can be employed to create a dynamic and interactive application. The simulator includes intricate mechanics such as calculating statistics and odds for a set of randomly generated pig racers, providing users with a unique experience each race.
 
 The current updates are around implementing the betting system to create a simple game loop.
 
