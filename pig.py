@@ -29,10 +29,10 @@ class Pig(QObject):
         self.energy = random.uniform(ENERGY_MIN, ENERGY_MAX) # Time in between charge checks, lower = better
         self.calculate_performance_level()
         self.odds = 0
-        print(f"Racer name: {self.name} / SPD: {self.top_speed:.1f} / AGI: {self.agility:.1f} / END: {self.endurance:.1f} / VIG: {self.vigor:.1f} / SPI: {self.spirit:.1f} / ENE: {self.energy:.1f} / PER: {self.performance_level*100:.2f}")
 
     def run(self, weather_conditions, track_conditions):
         self.running = True
+        self.state = 'READY'
         charge_check_interval = self.energy * 100  # Check for charge according to the pig's stat
         charge_check_timer = 0  # Timer to track charge checks
         time_interval_ms = 100
@@ -43,32 +43,32 @@ class Pig(QObject):
             charge_check_timer += time_interval_ms
             if self.state == 'READY':
                 self.state = 'CHARGING'
-            if self.state == 'NORMAL' and charge_check_timer >= charge_check_interval:
+                self.state_changed.emit('CHARGING') # Emit state change
+            elif self.state == 'NORMAL' and charge_check_timer >= charge_check_interval:
                 charge_check_timer = 0  # Reset timer
                 if random.random() < self.spirit:
                     self.state = 'CHARGING'
                     self.state_timer = 0
                     self.state_changed.emit('CHARGING')  # Emit state change
-            if self.state == 'CHARGING':
+            elif self.state == 'CHARGING':
+                speed_multiplier = CHARGING
                 if self.state_timer >= self.endurance:
                     self.state = 'RECOVERING'
                     self.state_timer = 0
                     self.state_changed.emit('RECOVERING')  # Emit state change
-            elif self.state == 'RECOVERING' and self.state_timer >= self.vigor:
-                self.state = 'NORMAL'
-                self.state_timer = 0
-                self.state_changed.emit('NORMAL')  # Emit state change
-            speed_modifier = self.get_speed_modifier(weather_conditions, track_conditions)
-            speed_multiplier = NORMAL
-            if self.state == 'CHARGING':
-                speed_multiplier = CHARGING
             elif self.state == 'RECOVERING':
                 speed_multiplier = RECOVERING
+                if self.state_timer >= self.vigor:
+                    self.state = 'NORMAL'
+                    self.state_timer = 0
+                    self.state_changed.emit('NORMAL')  # Emit state change
+            speed_modifier = self.get_speed_modifier(weather_conditions, track_conditions)
+            speed_multiplier = NORMAL
+                
             actual_speed_mps = base_speed_mps * speed_modifier * speed_multiplier
             self.distance_covered += actual_speed_mps * (time_interval_ms / 1000)
             self.progress_updated.emit(int((self.distance_covered / TOTAL_TRACK_LENGTH) * 100))
         finish_time = self.distance_covered / actual_speed_mps if actual_speed_mps != 0 else float('inf')
-        print(f"Finish time for {self.name} is {finish_time:.2f}")
         self.time = finish_time
         self.finished.emit(self.name, finish_time)
 

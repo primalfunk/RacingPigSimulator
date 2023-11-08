@@ -46,7 +46,7 @@ class RaceController(QObject):
     
     def start_race(self):
         self._race_started = True
-        logging.info(f"Race started with weather: {self.weather_condition[0]} and track: {self.track_condition[0]}")
+        print(f"Race started with weather: {self.weather_condition[0]} and track: {self.track_condition[0]}")
         for pig in self.pigs:
             pig_thread = QThread()
             pig.moveToThread(pig_thread)
@@ -55,12 +55,12 @@ class RaceController(QObject):
             pig.finished.connect(pig_thread.quit)
             self.threads.append(pig_thread)
             pig_thread.start()
+            pig.state = 'CHARGING'
 
     def check_finish(self, name, time):
         # Find the pig object by name
         pig = next((p for p in self.pigs if p.name == name), None)
         if pig:
-            logging.info(f"{name} finished in {time:.2f} seconds")
             if len(self.race_results) < 3:
                 self.race_results.append(pig)
                 self.update_race_recap_signal.emit(self.race_results)
@@ -68,7 +68,7 @@ class RaceController(QObject):
                     self._race_finished = True
                     self.race_finished.emit()
         else:
-            logging.error(f"Pig with name {name} not found.")
+            print(f"Pig with name {name} not found.")
 
     def clean_up(self):
         for thread in self.threads:
