@@ -1,5 +1,5 @@
 from betting import BettingWidget
-from constants import ODDS_MIN, ODDS_MAX, PLAYER_START_BANK, BET_MULTIPLIERS
+from constants import ODDS_MIN, ODDS_MAX, PLAYER_START_BANK, BET_MULTIPLIERS, DEFAULT_BET_SIZE
 from PyQt5.QtWidgets import (
     QWidget,
     QVBoxLayout,
@@ -12,7 +12,6 @@ from PyQt5.QtGui import QFont
 
 class ClickableLabel(QLabel):
     clicked = pyqtSignal(object)  # Signal to emit the pig object
-
     def __init__(self, pig, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.pig = pig  # Store a reference to the pig
@@ -27,10 +26,10 @@ class ClickableLabel(QLabel):
 
 class RaceTrackWidget(QWidget):
     race_results_signal = pyqtSignal(str, float)
-
     def __init__(self, main_window, race_controller):
         super().__init__()
         self.selected_pig_widget = None
+        # MainWindow is the parent in normal PyQt pattern. Here I'm passing it explicitly and storing it as an attribute.
         self.main_window = main_window
         self.init_ui()
         self.pig_widgets = []
@@ -42,7 +41,7 @@ class RaceTrackWidget(QWidget):
         # Initialize the counter for the winner podium
         self.finished_place = 1
         # set defaults for bets
-        self.bet_amount = 10
+        self.bet_amount = DEFAULT_BET_SIZE
         self.bet_type = "Win"
         self.setMinimumWidth(800)
         self.layout = QVBoxLayout()
@@ -82,8 +81,8 @@ class RaceTrackWidget(QWidget):
         # Add that one to the overall layout as well
         self.layout.addLayout(self.pigs_layout)
         # Create a new widget to govern the betting process
-        self.betting_widget = BettingWidget(self)
         self.bank = PLAYER_START_BANK
+        self.betting_widget = BettingWidget(self, self.bank)
         # Connect up the general UI updating logic
         self.betting_widget.update_bet_amount.connect(self.update_bet_amount_label)
         self.betting_widget.update_bet_type.connect(self.update_bet_type_label)
@@ -91,14 +90,32 @@ class RaceTrackWidget(QWidget):
         self.betting_widget.bet_placed.connect(self.handle_bet_placed)
         # Add the new one to the overall layout
         self.layout.addWidget(self.betting_widget)
+        # Game Over widget
+        self.game_over_label = QLabel("GAME OVER! Click 'New Game' to restart.", self)
+        self.game_over_label.setAlignment(Qt.AlignCenter)
+        # Initially hidden
+        self.game_over_label.hide()
+        self.layout.addWidget(self.game_over_label)
 
     def init_timer(self):
-        # QTimer helps with a few things; mainly tracking the finish times of each racer
-        self.update_timer = QTimer(self)
-        self.update_timer.setInterval(100)  # 100 ms
+        # Initialize the timer only if it has not been created before
+        if not hasattr(self, 'update_timer'):
+            self.update_timer = QTimer(self)
+            self.update_timer.setInterval(100)  # 100 ms
+        # Connect the timeout signal to the update_standings method
         self.update_timer.timeout.connect(self.update_standings)
+        # Start the timer
         self.update_timer.start()
 
+    def reset_timer(self):
+        # Stop the timer
+        self.update_timer.stop()
+        # Disconnect all signals from the timeout signal
+        self.update_timer.timeout.disconnect()
+        # Reconnect the timeout signal to the update_standings method
+        self.update_timer.timeout.connect(self.update_standings)
+        # Start the timer again
+        self.update_timer.start()
 
     def add_pig(self, pig):
         progress_bar = QProgressBar()
@@ -123,6 +140,8 @@ class RaceTrackWidget(QWidget):
         self.bank_label.setText(f"Player Bank: ${self.bank}")
         self.bet_amount_label.setText(f"Bet Amount: ${self.bet_amount}")
         self.bet_type_label.setText(f"Bet Category: {self.bet_type}")
+        self.bet_amount = DEFAULT_BET_SIZE
+        self.bet_type = "Win"
 
     def calculate_odds(self):
         min_per = min(pig.performance_level for pig, _, _ in self.pig_widgets)
@@ -132,7 +151,7 @@ class RaceTrackWidget(QWidget):
             odds = ((1 - normalized_per) * (ODDS_MAX - ODDS_MIN)) + ODDS_MIN
             pig.odds = max(min(odds, ODDS_MAX), ODDS_MIN)
             self.update_pig_state_label(pig, label, None, pig.state)
-    
+
     def remove_pig(self, progress_bar, label):
         self.pig_widgets = [
             tup
@@ -169,6 +188,7 @@ class RaceTrackWidget(QWidget):
     def update_standings(self):
         if self.race_controller._race_started and not self.race_controller._race_finished:
             self.pig_widgets.sort(key=lambda x: x[0].distance_covered, reverse=True)
+            
             for _, label, progress_bar in self.pig_widgets:
                 self.pigs_layout.removeWidget(label)
                 self.pigs_layout.removeWidget(progress_bar)
@@ -205,10 +225,11 @@ class RaceTrackWidget(QWidget):
         self.update_progress_bar_color(pig, progress_bar)
     
     def handle_bet_placed(self, bet_amount, bet_type):
-        # Takes in the bet amount and type
+        print(f"Called RaceTrackWidget.handle_bet_placed")
         self.bet_amount = bet_amount
         self.bet_details = bet_type
         # Deducts the cost of the bet from the player's bank directly
+        print(f"Bank: {self.bank}")
         self.bank = round(self.bank - self.bet_amount, 2)
         self.update_bank_label()
     
@@ -225,32 +246,33 @@ class RaceTrackWidget(QWidget):
     
     def calculate_payout(self, bet_type, bet_amount, odds):
         multiplier = BET_MULTIPLIERS.get(bet_type, 1)
+        print(f"Calculating payout. {bet_amount} * {odds} * {multiplier:.2f}")
         return bet_amount * odds * multiplier
     
     def handle_pig_finished(self, name, time):
-        # "Win" condition
-        if self.selected_pig_widget and self.selected_pig_widget.name == name and self.finished_place == 1:
-            self.first_pig_finished = True
-            payout = round(self.calculate_payout(self.bet_type, self.bet_amount, self.selected_pig_widget.odds),2)
-            self.bank = round(self.bank + payout)
-            self.update_bank_label()
-        # "Place" condition
-        elif self.selected_pig_widget and self.selected_pig_widget.name == name and (
-                self.finished_place == 2 or self.finished_place == 1):
-            payout = round(self.calculate_payout(self.bet_type, self.bet_amount, self.selected_pig_widget.odds),2)
-            self.bank = round(self.bank + payout)
-            self.update_bank_label()
-        # "Show" condition
-        elif self.selected_pig_widget and self.selected_pig_widget.name == name and (
-                self.finished_place == 1 or self.finished_place == 2 or self.finished_place == 3):
-            payout = round(self.calculate_payout(self.bet_type, self.bet_amount, self.selected_pig_widget.odds),2)
-            self.bank = round(self.bank + payout)
-            self.update_bank_label()
-        # Remove the finished pig's widgets
+        # Remove the finished pig's widgets and emit race results first as it's a common operation
         self.remove_finished_pig_widgets(name)
-        # Emit the race results and check if the race has concluded
         self.emit_race_results_and_check_end(name, time)
         self.finished_place += 1
+        if self.selected_pig_widget and self.selected_pig_widget.name == name:
+            if self.finished_place == 1:
+                self.process_payout(name, "Winner", self.bet_type == "Win")
+            elif self.finished_place == 2 and self.bet_type in ["Place", "Show"]:
+                self.process_payout(name, "Pig Placed (2nd)", self.bet_type == "Place")
+            elif self.finished_place == 3 and self.bet_type == "Show":
+                self.process_payout(name, "Pig Showed (3rd)", True)
+            else:
+                print(f"Pig {name} finished {self.finished_place}th but did not meet bet conditions.")
+
+    def process_payout(self, name, status, is_payout_valid):
+        if is_payout_valid:
+            # Calculate and process the payout
+            payout = round(self.calculate_payout(self.bet_amount, self.selected_pig_widget.odds), 2)
+            self.bank = round(self.bank + payout)
+            self.update_bank_label()
+            print(f"{status}! Pig: {name}, Payout: ${payout}")
+        else:
+            print(f"No payout for {name}. Bet was for {self.bet_type}, but pig finished {self.finished_place}th.")
 
     def remove_finished_pig_widgets(self, name):
         # Remove the widgets of the pig that finished.
@@ -265,6 +287,7 @@ class RaceTrackWidget(QWidget):
         if not any(pig.running for pig, _, _ in self.pig_widgets):
             self.race_controller._race_finished = True
             self.update_timer.stop()
+            self.betting_widget.hide()
             self.main_window.show_race_recap()
 
     def update_progress_bar_color(self, pig, progress_bar):
@@ -279,3 +302,23 @@ class RaceTrackWidget(QWidget):
                     self.race_controller.track_condition
                 ))
                 progress_bar.setStyleSheet(f"QProgressBar::chunk {{ background-color: {color}; }}")
+
+    def start_new_game(self):
+        # Reset the game state and set the bank to the starting value
+        self.main_window.reset_race(True)
+
+    def check_bank_status(self):
+        if self.bank < 5: # Minimum bet size
+            self.display_game_over()
+
+    def display_game_over(self):
+            # Show the game over label
+            self.game_over_label.show()
+            # Disable betting widgets to prevent new bets
+            self.betting_widget.setEnabled(False)
+            self.game_over_label.show()
+            # Change the main window start button text to indicate a new game can be started
+            self.main_window.start_button.setText("New Game")
+            # Connect the button click to a method that resets the game
+            self.main_window.start_button.clicked.disconnect()
+            self.main_window.start_button.clicked.connect(self.main_window.reset_race)

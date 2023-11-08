@@ -41,10 +41,14 @@ class Pig(QObject):
             QThread.msleep(time_interval_ms)
             self.state_timer += time_interval_ms / 1000
             charge_check_timer += time_interval_ms
+            # First set a normal speed multiplier
+            speed_multiplier = NORMAL
             if self.state == 'READY':
                 self.state = 'CHARGING'
+                speed_multiplier = CHARGING
                 self.state_changed.emit('CHARGING') # Emit state change
             elif self.state == 'NORMAL' and charge_check_timer >= charge_check_interval:
+                speed_multiplier = NORMAL
                 charge_check_timer = 0  # Reset timer
                 if random.random() < self.spirit:
                     self.state = 'CHARGING'
@@ -62,9 +66,8 @@ class Pig(QObject):
                     self.state = 'NORMAL'
                     self.state_timer = 0
                     self.state_changed.emit('NORMAL')  # Emit state change
+            # We should now have the correct speed_multiplier
             speed_modifier = self.get_speed_modifier(weather_conditions, track_conditions)
-            speed_multiplier = NORMAL
-                
             actual_speed_mps = base_speed_mps * speed_modifier * speed_multiplier
             self.distance_covered += actual_speed_mps * (time_interval_ms / 1000)
             self.progress_updated.emit(int((self.distance_covered / TOTAL_TRACK_LENGTH) * 100))

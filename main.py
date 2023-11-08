@@ -1,4 +1,4 @@
-from constants import CHARGING_MIN, CHARGING_MAX, TOTAL_TRACK_LENGTH, SPEED_MAX, SPEED_MIN, NORMAL, CHARGING, RECOVERING, STRAIGHTAWAY_LENGTH, TURN_LENGTH, WEATHER_CONDITIONS, TRACK_CONDITIONS, PIG_NAMES, AGILITY_MIN, AGILITY_MAX
+from constants import PLAYER_START_BANK, DEFAULT_BET_SIZE, CHARGING_MIN, CHARGING_MAX, TOTAL_TRACK_LENGTH, SPEED_MAX, SPEED_MIN, NORMAL, CHARGING, RECOVERING, STRAIGHTAWAY_LENGTH, TURN_LENGTH, WEATHER_CONDITIONS, TRACK_CONDITIONS, PIG_NAMES, AGILITY_MIN, AGILITY_MAX
 from functools import partial
 import logging
 from pig import Pig
@@ -77,6 +77,7 @@ class MainWindow(QMainWindow):
         self.central_widget.setLayout(self.layout)
 
     def display_pigs(self):
+        
         for pig in self.race_controller.pigs:
             self.race_track_widget.add_pig(pig)
         self.race_track_widget.calculate_odds()
@@ -91,12 +92,13 @@ class MainWindow(QMainWindow):
         if self.start_button.text() == "Place Bet":
             if self.race_track_widget.selected_pig_widget is not None:
                 # This method in the other class emits the "bet_placed" signal from the BettingWidget
+                self.betting_widget.place_bet()
                 self.start_button.setDisabled(True)
                 self.betting_widget.bet_amount_dropdown.setDisabled(True)
                 self.betting_widget.bet_type_dropdown.setDisabled(True)
                 self.race_controller.start_race()
         if self.start_button.text() == "Race Again":
-            self.reset_race()
+            self.reset_race(False)
 
     def show_results(self):
         self.start_button.setEnabled(True)
@@ -114,13 +116,17 @@ class MainWindow(QMainWindow):
         else:
             print(f"Pig with name {name} not found.")
 
-    def reset_race(self):
+    def reset_race(self, new = False):
+        if new:
+            self.race_track_widget.bank = PLAYER_START_BANK
+        # Check if there's enough in the bank to place any bets (if not, game over message)
+        self.race_track_widget.check_bank_status()
+        self.betting_widget.bet_amount = DEFAULT_BET_SIZE
         self.start_button.setEnabled(True)
+        self.betting_widget.clear_racer_details()
         self.betting_widget.bet_amount_dropdown.setEnabled(True)
         self.betting_widget.bet_type_dropdown.setEnabled(True)
         self.start_button.setText("Select a Racer Pig")
-        
-        # Maybe this race recap widget needs to be deleted and then recreated?
         self.race_recap_widget.hide()
         self.race_track_widget.show()
         self.race_results.clear()
@@ -134,15 +140,21 @@ class MainWindow(QMainWindow):
         # Reconnect the origin for the finishing signal for each pig, to run the placing logic in RaceTrackWidget
         for pig in self.race_controller.pigs:
             pig.finished.connect(self.race_track_widget.handle_pig_finished)
+            print(f"Reconnected pig {pig.name} to the finish line proc")
         # Reconnect the origin for the race finish, to show the race recap
         self.race_controller.race_finished.connect(self.show_race_recap)
         self.display_pigs()
+        # Reset the timer for updating standings and pig finish times
+        self.race_track_widget.reset_timer()
+        self.betting_widget.show()
+        self.betting_widget.update_bet_amount_options(self.race_track_widget.bank)
 
     def show_race_recap(self):
         sorted_results = sorted(self.race_results, key=lambda x: x['Finishing Time'])
         self.race_recap_widget.display_results(sorted_results)
         self.race_recap_widget.show()
         self.start_button.setText("Race Again")
+        self.start_button.setEnabled(True)
 
         
 if __name__ == "__main__":
